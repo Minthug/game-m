@@ -4,7 +4,7 @@ import { sentry } from '@granite-js/plugin-sentry';
 
 export default defineConfig({
   scheme: 'intoss',
-  appName: 'project-m',
+  appName: 'naar',
   plugins: [
     sentry({ useClient: false }),
     appsInToss({

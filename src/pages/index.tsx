@@ -272,7 +272,7 @@ function Page() {
   }, []);
 
   useEffect(() => {
-    if (!loadFullScreenAd.isSupported()) return;
+    if (!loadFullScreenAd.isSupported?.()) return;
     const cleanup = loadFullScreenAd({
       options: { adGroupId: AD_GROUP_ID },
       onEvent: () => setAdLoaded(true),
@@ -286,7 +286,7 @@ function Page() {
   }, [slimes]);
 
   const reloadAd = useCallback(() => {
-    if (!loadFullScreenAd.isSupported()) return;
+    if (!loadFullScreenAd.isSupported?.()) return;
     setAdLoaded(false);
     loadFullScreenAd({
       options: { adGroupId: AD_GROUP_ID },
@@ -302,7 +302,7 @@ function Page() {
       setShowThemePicker(false);
       return;
     }
-    if (!adLoaded || !showFullScreenAd.isSupported()) return;
+    if (!adLoaded || !showFullScreenAd.isSupported?.()) return;
 
     pendingThemeIdRef.current = themeId;
     showFullScreenAd({
