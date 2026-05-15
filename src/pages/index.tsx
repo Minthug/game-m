@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Slime, detectExpression } from '../components/Slime';
+import { generateHapticFeedback } from '@apps-in-toss/native-modules';
 import { ThemeBackground, MiniDots } from '../components/ThemeBackground';
 import { EmotionAtmosphere } from '../components/EmotionAtmosphere';
 import { EXPRESSION_COLORS, BACKGROUND_THEMES, AD_GROUP_ID, canvasTheme } from '../constants/themes';
@@ -54,7 +55,8 @@ function Page() {
   const notifAskedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { draggingIdsRef } = useSlimePhysics(setSlimes);
+  const { draggingIdsRef, triggerShake } = useSlimePhysics(setSlimes);
+
 
   const activeTheme = BACKGROUND_THEMES.find(t => t.id === activeThemeId) ?? BACKGROUND_THEMES[0]!;
   const displayedTheme = BACKGROUND_THEMES.find(t => t.id === (previewThemeId ?? activeThemeId)) ?? BACKGROUND_THEMES[0]!;
@@ -279,6 +281,14 @@ function Page() {
         <Text style={[styles.headerSub, { color: theme.headerSubText }]}>
           {slimes.length > 0 ? `슬라임 ${slimes.length}마리` : '털어놔요'}
         </Text>
+        <TouchableOpacity
+          onPress={() => { generateHapticFeedback({ type: 'error' }); triggerShake(); }}
+          style={styles.shakeBtn}
+          activeOpacity={0.7}
+          disabled={slimes.length === 0}
+        >
+          <Text style={styles.shakeBtnText}>🫨</Text>
+        </TouchableOpacity>
         <View style={styles.themePickerBtn}>
           <TouchableOpacity
             onPress={() => { setShowThemePicker(v => !v); setPreviewThemeId(null); }}
@@ -415,7 +425,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   headerSub: { fontSize: 13, fontWeight: '500', flex: 1 },
-  themePickerBtn: { marginLeft: 'auto' },
+  shakeBtn: { padding: 4 },
+  shakeBtnText: { fontSize: 22 },
+  themePickerBtn: { marginLeft: 4 },
   themeDot: {
     width: 28, height: 28, borderRadius: 14,
     borderWidth: 2, borderColor: 'rgba(0,0,0,0.12)',

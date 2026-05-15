@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Dimensions } from 'react-native';
 import { Expression } from '../components/Slime';
 
@@ -22,6 +22,18 @@ export function useSlimePhysics(
 ) {
   const draggingIdsRef = useRef<Set<string>>(new Set());
   const velocitiesRef = useRef<Map<string, { vx: number; vy: number }>>(new Map());
+
+  const triggerShake = useCallback(() => {
+    const vels = velocitiesRef.current;
+    for (const id of vels.keys()) {
+      const angle = Math.random() * Math.PI * 2;
+      const power = 2.5 + Math.random() * 2.5;
+      vels.set(id, {
+        vx: Math.cos(angle) * power,
+        vy: Math.sin(angle) * power,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const MAX_SPEED = 1.4;
@@ -136,5 +148,5 @@ export function useSlimePhysics(
     return () => clearInterval(intervalId);
   }, []);
 
-  return { draggingIdsRef };
+  return { draggingIdsRef, triggerShake };
 }
