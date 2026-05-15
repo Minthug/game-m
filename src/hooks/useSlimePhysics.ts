@@ -36,10 +36,10 @@ export function useSlimePhysics(
   }, []);
 
   useEffect(() => {
-    const MAX_SPEED = 1.4;
+    const MAX_SPEED = 1.8;
     const DAMPING = 0.95;
     const DRIFT = 0.03;
-    const COHESION = 0.012;
+    const COHESION = 0.021;
 
     const intervalId = setInterval(() => {
       setSlimes(prev => {
@@ -80,7 +80,7 @@ export function useSlimePhysics(
             const dy = cy - (slime.y + slime.size * 0.5);
             const dist = Math.sqrt(dx * dx + dy * dy);
             const avgMinDist = peers.reduce((acc, p) => acc + (slime.size + p.size) * 0.42, 0) / peers.length;
-            if (dist > avgMinDist && dist < 320) {
+            if (dist > avgMinDist * 0.5 && dist < 320) {
               const force = Math.min((dist - avgMinDist) / 120, 1) * COHESION;
               vx += (dx / dist) * force;
               vy += (dy / dist) * force;
