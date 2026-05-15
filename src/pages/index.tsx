@@ -12,73 +12,20 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
-  Animated,
   ScrollView,
 } from 'react-native';
-import { Slime, detectExpression, Expression } from '../components/Slime';
+import { Slime, detectExpression } from '../components/Slime';
+import { ThemeBackground, MiniDots } from '../components/ThemeBackground';
+import { EmotionAtmosphere } from '../components/EmotionAtmosphere';
+import { EXPRESSION_COLORS, BACKGROUND_THEMES, AD_GROUP_ID, canvasTheme } from '../constants/themes';
+import { useSlimePhysics, SlimeData, CANVAS_H } from '../hooks/useSlimePhysics';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const EXPRESSION_COLORS: Record<Expression, string[]> = {
-  angry:    ['#DC2626', '#B91C1C', '#EF4444', '#C53030'],
-  sad:      ['#2563EB', '#1D4ED8', '#3B82F6', '#1E40AF'],
-  surprised:['#9333EA', '#7C3AED', '#A855F7', '#6D28D9'],
-  blank:    ['#6B7280', '#52525B', '#71717A', '#64748B'],
-  happy:    ['#7C3AED', '#DB2777', '#D97706', '#0891B2'],
-  fear:     ['#4F46E5', '#4338CA', '#6366F1', '#3730A3'],
-  disgust:  ['#16A34A', '#15803D', '#22C55E', '#166534'],
-  contempt: ['#64748B', '#475569', '#94A3B8', '#334155'],
-};
-
-interface BackgroundTheme {
-  id: string;
-  name: string;
-  bg: string;
-  dotColor: string;
-  free: boolean;
-}
-
-const BACKGROUND_THEMES: BackgroundTheme[] = [
-  { id: 'default',    name: '기본',   bg: '#F0EDE6', dotColor: 'rgba(120,100,80,0.12)',  free: true  },
-  { id: 'deep_sea',   name: '심해',   bg: '#020C1B', dotColor: 'rgba(0,180,255,0.50)',   free: false },
-  { id: 'lava',       name: '용암',   bg: '#120100', dotColor: 'rgba(255,90,0,0.60)',    free: false },
-  { id: 'storm',      name: '폭풍',   bg: '#060610', dotColor: 'rgba(130,150,255,0.45)', free: false },
-  { id: 'fog_forest', name: '안개숲', bg: '#0A1A0D', dotColor: 'rgba(0,200,80,0.38)',    free: false },
-];
-
-const AD_GROUP_ID = 'YOUR_AD_GROUP_ID'; // TODO: 앱인토스 콘솔에서 발급
-
-const canvasTheme = {
-  inputAreaBg: '#FFFFFF',
-  borderColor: '#E2DDD6',
-  inputBg: '#EDE9E3',
-  inputText: '#1C1917',
-  placeholderText: '#A8A29E',
-  emptyTitle: '#4C4558',
-  emptySubtitle: '#8B85A0',
-  buttonDisabledBg: '#E2DDD6',
-  headerBg: '#FFFFFF',
-  headerText: '#1C1917',
-  headerSubText: '#78716C',
-};
-
-interface SlimeData {
-  id: string;
-  color: string;
-  size: number;
-  x: number;
-  y: number;
-  text: string;
-  expression: Expression;
-  createdAt: number;
-}
-
-function pickColor(expr: Expression): string {
-  const palette = EXPRESSION_COLORS[expr];
+function pickColor(expression: SlimeData['expression']): string {
+  const palette = EXPRESSION_COLORS[expression];
   return palette[Math.floor(Math.random() * palette.length)] ?? palette[0];
 }
-
-const CANVAS_H = SCREEN_HEIGHT * 0.72;
 
 function clamp(x: number, y: number, size: number) {
   return {
@@ -90,375 +37,6 @@ function clamp(x: number, y: number, size: number) {
 export const Route = createRoute('/', {
   component: Page,
 });
-
-const ATMO_COLORS: Record<Expression, string> = {
-  angry:    'rgba(220, 38, 38, 0.09)',
-  sad:      'rgba(37, 99, 235, 0.09)',
-  fear:     'rgba(79, 70, 229, 0.09)',
-  happy:    'rgba(219, 39, 119, 0.07)',
-  disgust:  'rgba(22, 163, 74, 0.07)',
-  surprised:'rgba(147, 51, 234, 0.09)',
-  contempt: 'rgba(100, 116, 139, 0.07)',
-  blank:    'rgba(107, 114, 128, 0.05)',
-};
-
-const ATMO_BLOBS = [
-  { size: 380, left: SCREEN_WIDTH * 0.20 - 190, top: -20 },
-  { size: 300, left: SCREEN_WIDTH * 0.78 - 150, top: -40 },
-  { size: 340, left: SCREEN_WIDTH * 0.08 - 170, top: SCREEN_HEIGHT * 0.18 },
-  { size: 320, left: SCREEN_WIDTH * 0.72 - 160, top: SCREEN_HEIGHT * 0.16 },
-  { size: 270, left: SCREEN_WIDTH * 0.44 - 135, top: SCREEN_HEIGHT * 0.10 },
-];
-
-function EmotionAtmosphere({ expression }: { expression: Expression | null }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const [activeColor, setActiveColor] = useState('transparent');
-  const hasShownRef = useRef(false);
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  const blobOffsets = useRef(
-    ATMO_BLOBS.map(() => ({ x: new Animated.Value(0), y: new Animated.Value(0) }))
-  ).current;
-
-  useEffect(() => {
-    blobOffsets.forEach((offset, i) => {
-      const drift = () => {
-        Animated.parallel([
-          Animated.timing(offset.x, { toValue: (Math.random() - 0.5) * 90, duration: 7000 + i * 900, useNativeDriver: true }),
-          Animated.timing(offset.y, { toValue: (Math.random() - 0.5) * 55, duration: 7000 + i * 900, useNativeDriver: true }),
-        ]).start(({ finished }) => { if (finished) drift(); });
-      };
-      setTimeout(() => drift(), i * 500);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (animRef.current) animRef.current.stop();
-
-    if (!expression) {
-      animRef.current = Animated.timing(opacity, { toValue: 0, duration: 2000, useNativeDriver: true });
-      animRef.current.start();
-      return;
-    }
-
-    const newColor = ATMO_COLORS[expression];
-
-    if (!hasShownRef.current) {
-      hasShownRef.current = true;
-      setActiveColor(newColor);
-      animRef.current = Animated.timing(opacity, { toValue: 1, duration: 3500, useNativeDriver: true });
-      animRef.current.start();
-    } else {
-      animRef.current = Animated.timing(opacity, { toValue: 0, duration: 1200, useNativeDriver: true });
-      animRef.current.start(() => {
-        setActiveColor(newColor);
-        animRef.current = Animated.timing(opacity, { toValue: 1, duration: 3500, useNativeDriver: true });
-        animRef.current.start();
-      });
-    }
-  }, [expression]);
-
-  return (
-    <Animated.View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, opacity }}>
-      {ATMO_BLOBS.map((blob, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: blob.size,
-            height: blob.size,
-            borderRadius: blob.size / 2,
-            backgroundColor: activeColor,
-            left: blob.left,
-            top: blob.top,
-            transform: [{ translateX: blobOffsets[i]!.x }, { translateY: blobOffsets[i]!.y }],
-          }}
-        />
-      ))}
-    </Animated.View>
-  );
-}
-
-function BackgroundDots({ dotColor }: { dotColor: string }) {
-  const dots = useMemo(
-    () =>
-      Array.from({ length: 6 }, (_, i) => ({
-        id: i,
-        size: 60 + Math.random() * 100,
-        x: Math.random() * SCREEN_WIDTH,
-        y: Math.random() * (SCREEN_HEIGHT * 0.65),
-        opacity: 0.4 + Math.random() * 0.6,
-      })),
-    [],
-  );
-
-  return (
-    <>
-      {dots.map(dot => (
-        <View
-          key={dot.id}
-          style={{
-            position: 'absolute',
-            width: dot.size,
-            height: dot.size,
-            borderRadius: dot.size / 2,
-            backgroundColor: dotColor,
-            left: dot.x - dot.size / 2,
-            top: dot.y - dot.size / 2,
-            opacity: dot.opacity,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-// 테마 카드 안에 들어가는 축소판 배경 점
-const MINI_DOTS = [
-  { size: 24, x: 10, y: 6,  opacity: 0.85 },
-  { size: 16, x: 54, y: 10, opacity: 0.65 },
-  { size: 20, x: 32, y: 30, opacity: 0.75 },
-  { size: 13, x: 72, y: 4,  opacity: 0.55 },
-  { size: 18, x: 62, y: 34, opacity: 0.60 },
-];
-
-function MiniDots({ dotColor }: { dotColor: string }) {
-  return (
-    <>
-      {MINI_DOTS.map((d, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: d.size,
-            height: d.size,
-            borderRadius: d.size / 2,
-            backgroundColor: dotColor,
-            left: d.x,
-            top: d.y,
-            opacity: d.opacity,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-// --- 테마별 파티클 데이터 (모듈 레벨 - 한번만 계산) ---
-
-const DEEP_SEA_BUBBLES = Array.from({ length: 10 }, (_, i) => ({
-  id: i,
-  x: (SCREEN_WIDTH / 10) * i + (SCREEN_WIDTH / 10) * 0.3,
-  color: ['#00D4FF', '#00BFFF', '#7FE8FF', '#40C8E8'][i % 4] ?? '#00D4FF',
-  size: 4 + (i % 5) * 2.2,
-  duration: 9000 + i * 700,
-  delay: i * 1100,
-}));
-
-const LAVA_EMBERS = Array.from({ length: 14 }, (_, i) => ({
-  id: i,
-  x: (SCREEN_WIDTH / 14) * i + (SCREEN_WIDTH / 14) * 0.4,
-  color: ['#FF4500', '#FF6B00', '#FF8C00', '#FFB800', '#FF2200'][i % 5] ?? '#FF4500',
-  size: 2 + (i % 4),
-  duration: 4500 + i * 280,
-  delay: i * 480,
-}));
-
-const STORM_RAIN = Array.from({ length: 18 }, (_, i) => ({
-  id: i,
-  x: (SCREEN_WIDTH / 18) * i,
-  color: ['rgba(200,215,255,0.65)', 'rgba(180,200,255,0.50)', 'rgba(220,230,255,0.55)'][i % 3] ?? 'rgba(200,215,255,0.6)',
-  w: i % 4 === 0 ? 2 : 1,
-  h: 45 + (i % 5) * 8,
-  duration: 1300 + (i % 6) * 150,
-  delay: i * 220,
-}));
-
-// --- 애니메이션 파티클 컴포넌트 ---
-
-function RisingParticle({ x, color, size, duration, delay }: {
-  x: number; color: string; size: number; duration: number; delay: number;
-}) {
-  const progress = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let cancelled = false;
-    const animate = () => {
-      if (cancelled) return;
-      progress.setValue(0);
-      opacity.setValue(0);
-      Animated.parallel([
-        Animated.timing(progress, { toValue: 1, duration, useNativeDriver: true }),
-        Animated.sequence([
-          Animated.timing(opacity, { toValue: 0.9, duration: duration * 0.2, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.55, duration: duration * 0.5, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: duration * 0.3, useNativeDriver: true }),
-        ]),
-      ]).start(({ finished }) => { if (finished && !cancelled) animate(); });
-    };
-    const t = setTimeout(animate, delay);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, []);
-
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -(SCREEN_HEIGHT + 80)],
-  });
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: SCREEN_HEIGHT,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
-        opacity,
-        transform: [{ translateY }],
-      }}
-    />
-  );
-}
-
-function FallingStreak({ x, color, w, h, duration, delay }: {
-  x: number; color: string; w: number; h: number; duration: number; delay: number;
-}) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let cancelled = false;
-    const animate = () => {
-      if (cancelled) return;
-      progress.setValue(0);
-      Animated.timing(progress, { toValue: 1, duration, useNativeDriver: true }).start(
-        ({ finished }) => { if (finished && !cancelled) animate(); }
-      );
-    };
-    const t = setTimeout(animate, delay);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, []);
-
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-h, SCREEN_HEIGHT + h],
-  });
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: 0,
-        width: w,
-        height: h,
-        borderRadius: w,
-        backgroundColor: color,
-        transform: [{ translateY }],
-      }}
-    />
-  );
-}
-
-function PulsingOrb({ x, y, size, color, durationMs }: {
-  x: number; y: number; size: number; color: string; durationMs: number;
-}) {
-  const opacity = useRef(new Animated.Value(0.5)).current;
-
-  useEffect(() => {
-    const pulse = () => {
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1.0, duration: durationMs, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.5, duration: durationMs, useNativeDriver: true }),
-      ]).start(({ finished }) => { if (finished) pulse(); });
-    };
-    pulse();
-  }, []);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
-        opacity,
-      }}
-    />
-  );
-}
-
-function LightningFlash() {
-  const flashOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      t = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(flashOpacity, { toValue: 0.55, duration: 55, useNativeDriver: true }),
-          Animated.timing(flashOpacity, { toValue: 0, duration: 90, useNativeDriver: true }),
-          Animated.delay(130),
-          Animated.timing(flashOpacity, { toValue: 0.35, duration: 45, useNativeDriver: true }),
-          Animated.timing(flashOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
-        ]).start(() => schedule());
-      }, 3500 + Math.random() * 6000);
-    };
-    schedule();
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{ ...StyleSheet.absoluteFillObject, backgroundColor: '#8899EE', opacity: flashOpacity }}
-    />
-  );
-}
-
-function ThemeBackground({ themeId, dotColor }: { themeId: string; dotColor: string }) {
-  if (themeId === 'deep_sea') {
-    return (
-      <>
-        <PulsingOrb x={-160} y={-50} size={360} color="rgba(0,140,255,0.09)" durationMs={5000} />
-        <PulsingOrb x={SCREEN_WIDTH - 100} y={SCREEN_HEIGHT * 0.12} size={280} color="rgba(0,200,200,0.07)" durationMs={7200} />
-        <PulsingOrb x={SCREEN_WIDTH * 0.38 - 150} y={-20} size={320} color="rgba(0,80,200,0.06)" durationMs={6000} />
-        {DEEP_SEA_BUBBLES.map(p => <RisingParticle key={p.id} {...p} />)}
-      </>
-    );
-  }
-
-  if (themeId === 'lava') {
-    return (
-      <>
-        <PulsingOrb x={-SCREEN_WIDTH * 0.15} y={SCREEN_HEIGHT * 0.4} size={SCREEN_WIDTH * 1.3} color="rgba(255,35,0,0.11)" durationMs={2500} />
-        <PulsingOrb x={SCREEN_WIDTH * 0.15} y={SCREEN_HEIGHT * 0.5} size={SCREEN_WIDTH * 0.7} color="rgba(255,100,0,0.10)" durationMs={1800} />
-        {LAVA_EMBERS.map(p => <RisingParticle key={p.id} {...p} />)}
-      </>
-    );
-  }
-
-  if (themeId === 'storm') {
-    return (
-      <>
-        <PulsingOrb x={-160} y={-60} size={380} color="rgba(70,70,220,0.09)" durationMs={8000} />
-        <PulsingOrb x={SCREEN_WIDTH * 0.55} y={SCREEN_HEIGHT * 0.06} size={300} color="rgba(100,60,255,0.07)" durationMs={6500} />
-        <LightningFlash />
-        {STORM_RAIN.map(p => <FallingStreak key={p.id} {...p} />)}
-      </>
-    );
-  }
-
-  return <BackgroundDots dotColor={dotColor} />;
-}
 
 function Page() {
   const theme = canvasTheme;
@@ -474,18 +52,18 @@ function Page() {
   const [adLoaded, setAdLoaded] = useState(false);
   const pendingThemeIdRef = useRef<string | null>(null);
   const notifAskedRef = useRef(false);
-  const draggingIdsRef = useRef<Set<string>>(new Set());
-  const velocitiesRef = useRef<Map<string, { vx: number; vy: number }>>(new Map());
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { draggingIdsRef } = useSlimePhysics(setSlimes);
 
   const activeTheme = BACKGROUND_THEMES.find(t => t.id === activeThemeId) ?? BACKGROUND_THEMES[0]!;
   const displayedTheme = BACKGROUND_THEMES.find(t => t.id === (previewThemeId ?? activeThemeId)) ?? BACKGROUND_THEMES[0]!;
 
-  const dominantExpression = useMemo<Expression | null>(() => {
+  const dominantExpression = useMemo<SlimeData['expression'] | null>(() => {
     if (slimes.length === 0) return null;
-    const counts: Partial<Record<Expression, number>> = {};
+    const counts: Partial<Record<SlimeData['expression'], number>> = {};
     for (const s of slimes) counts[s.expression] = (counts[s.expression] ?? 0) + 1;
-    return (Object.entries(counts) as [Expression, number][])
+    return (Object.entries(counts) as [SlimeData['expression'], number][])
       .reduce((a, b) => (b[1] > a[1] ? b : a))[0];
   }, [slimes]);
 
@@ -543,122 +121,6 @@ function Page() {
     }, 2000);
   }, [slimes]);
 
-  // 자율 이동 + 군집 물리
-  useEffect(() => {
-    const physicsCanvasH = CANVAS_H;
-    const MAX_SPEED = 1.4;
-    const DAMPING = 0.95;
-    const DRIFT = 0.03;
-    const COHESION = 0.012;
-
-    const intervalId = setInterval(() => {
-      setSlimes(prev => {
-        if (prev.length === 0) return prev;
-
-        const vels = velocitiesRef.current;
-        const dragging = draggingIdsRef.current;
-
-        for (const s of prev) {
-          if (!vels.has(s.id)) {
-            vels.set(s.id, {
-              vx: (Math.random() - 0.5) * 0.4,
-              vy: (Math.random() - 0.5) * 0.4,
-            });
-          }
-        }
-        const activeIds = new Set(prev.map(s => s.id));
-        for (const k of vels.keys()) {
-          if (!activeIds.has(k)) vels.delete(k);
-        }
-
-        let changed = false;
-        const next = prev.map(slime => {
-          if (dragging.has(slime.id)) return slime;
-
-          let { vx, vy } = vels.get(slime.id)!;
-
-          // 무작위 표류
-          vx += (Math.random() - 0.5) * DRIFT;
-          vy += (Math.random() - 0.5) * DRIFT;
-
-          // 같은 감정끼리 군집 (겹치지 않는 거리 밖에서만 끌어당김)
-          const peers = prev.filter(s => s.id !== slime.id && s.expression === slime.expression);
-          if (peers.length > 0) {
-            const cx = peers.reduce((acc, p) => acc + p.x + p.size * 0.41, 0) / peers.length;
-            const cy = peers.reduce((acc, p) => acc + p.y + p.size * 0.5, 0) / peers.length;
-            const dx = cx - (slime.x + slime.size * 0.41);
-            const dy = cy - (slime.y + slime.size * 0.5);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const avgMinDist = peers.reduce((acc, p) => acc + (slime.size + p.size) * 0.42, 0) / peers.length;
-            if (dist > avgMinDist && dist < 320) {
-              const force = Math.min((dist - avgMinDist) / 120, 1) * COHESION;
-              vx += (dx / dist) * force;
-              vy += (dy / dist) * force;
-            }
-          }
-
-          // 충돌 바운스 (모든 슬라임)
-          for (const other of prev) {
-            if (other.id === slime.id) continue;
-            const dx = (slime.x + slime.size * 0.41) - (other.x + other.size * 0.41);
-            const dy = (slime.y + slime.size * 0.5) - (other.y + other.size * 0.5);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const touchDist = (slime.size + other.size) * 0.42;
-            if (dist < touchDist && dist > 0.5) {
-              const nx = dx / dist;
-              const ny = dy / dist;
-              const relVel = vx * nx + vy * ny;
-              if (relVel < 0) {
-                // 탄성 반사 + 다른 감정이면 횡방향 랜덤 흘림으로 블로킹 탈출
-                vx -= 1.8 * relVel * nx;
-                vy -= 1.8 * relVel * ny;
-                if (other.expression !== slime.expression) {
-                  const side = Math.random() > 0.5 ? 1 : -1;
-                  vx += side * ny * 0.4;
-                  vy += -side * nx * 0.4;
-                }
-              } else if (dist < touchDist * 0.4) {
-                vx += nx * 0.4;
-                vy += ny * 0.4;
-              }
-            }
-          }
-
-          vx *= DAMPING;
-          vy *= DAMPING;
-
-          const speed = Math.sqrt(vx * vx + vy * vy);
-          if (speed > MAX_SPEED) {
-            vx = (vx / speed) * MAX_SPEED;
-            vy = (vy / speed) * MAX_SPEED;
-          }
-
-          let newX = slime.x + vx;
-          let newY = slime.y + vy;
-
-          const maxX = SCREEN_WIDTH - slime.size * 0.82 - 8;
-          const maxY = physicsCanvasH - slime.size - 8;
-          if (newX < 8) { vx = Math.abs(vx) * 0.5; newX = 8; }
-          else if (newX > maxX) { vx = -Math.abs(vx) * 0.5; newX = maxX; }
-          if (newY < 8) { vy = Math.abs(vy) * 0.5; newY = 8; }
-          else if (newY > maxY) { vy = -Math.abs(vy) * 0.5; newY = maxY; }
-
-          vels.set(slime.id, { vx, vy });
-
-          if (Math.abs(newX - slime.x) > 0.05 || Math.abs(newY - slime.y) > 0.05) {
-            changed = true;
-            return { ...slime, x: newX, y: newY };
-          }
-          return slime;
-        });
-
-        return changed ? next : prev;
-      });
-    }, 50); // 20fps
-
-    return () => clearInterval(intervalId);
-  }, []);
-
   const reloadAd = useCallback(() => {
     if (!loadFullScreenAd.isSupported?.()) return;
     setAdLoaded(false);
@@ -669,7 +131,6 @@ function Page() {
     });
   }, []);
 
-  // 잠긴 테마는 미리보기 먼저, 잠금 해제된 테마는 바로 적용
   const handleThemeSelect = useCallback((themeId: string) => {
     if (unlockedThemeIds.includes(themeId)) {
       setActiveThemeId(themeId);
@@ -681,13 +142,12 @@ function Page() {
     setPreviewThemeId(themeId);
   }, [unlockedThemeIds]);
 
-  // 미리보기 상태에서 광고 보고 잠금해제
   const handleUnlock = useCallback((themeId: string) => {
     if (!adLoaded || !showFullScreenAd.isSupported?.()) return;
     pendingThemeIdRef.current = themeId;
     showFullScreenAd({
       options: { adGroupId: AD_GROUP_ID },
-      onEvent: (event) => {
+      onEvent: (event: any) => {
         if (event.type === 'userEarnedReward') {
           const id = pendingThemeIdRef.current;
           if (!id) return;
@@ -792,7 +252,7 @@ function Page() {
         setTimeout(() => {
           const cleanup = requestNotificationAgreement({
             options: { templateCode: 'DAILY_EVENING_REMINDER' }, // TODO: 콘솔에서 발급받은 코드로 교체
-            onEvent: ({ type }) => {
+            onEvent: ({ type }: any) => {
               eventLog({ log_name: 'notif_agreement', log_type: 'event', params: { result: type } });
               cleanup();
             },
@@ -821,10 +281,7 @@ function Page() {
         </Text>
         <View style={styles.themePickerBtn}>
           <TouchableOpacity
-            onPress={() => {
-              setShowThemePicker(v => !v);
-              setPreviewThemeId(null);
-            }}
+            onPress={() => { setShowThemePicker(v => !v); setPreviewThemeId(null); }}
             style={styles.themeDot}
             activeOpacity={0.7}
           >
@@ -835,22 +292,13 @@ function Page() {
 
       {showThemePicker && (
         <View style={[styles.themePanel, { backgroundColor: theme.inputAreaBg, borderBottomColor: theme.borderColor }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.themePanelScroll}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.themePanelScroll}>
             {BACKGROUND_THEMES.map(t => {
               const unlocked = unlockedThemeIds.includes(t.id);
               const isActiveTheme = t.id === activeThemeId;
               const isPreviewing = t.id === previewThemeId;
               return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => handleThemeSelect(t.id)}
-                  activeOpacity={0.75}
-                  style={styles.themeCard}
-                >
+                <TouchableOpacity key={t.id} onPress={() => handleThemeSelect(t.id)} activeOpacity={0.75} style={styles.themeCard}>
                   <View style={[
                     styles.themeCardPreview,
                     { backgroundColor: t.bg },
@@ -881,12 +329,11 @@ function Page() {
         <View style={[styles.slimeArea, { backgroundColor: displayedTheme.bg }]}>
           <ThemeBackground themeId={displayedTheme.id} dotColor={displayedTheme.dotColor} />
           <EmotionAtmosphere expression={dominantExpression} />
+
           {slimes.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🫧</Text>
-              <Text style={[styles.emptyTitle, { color: theme.emptyTitle }]}>
-                지금 기분이 어때요?
-              </Text>
+              <Text style={[styles.emptyTitle, { color: theme.emptyTitle }]}>지금 기분이 어때요?</Text>
               <Text style={[styles.emptySubtitle, { color: theme.emptySubtitle }]}>
                 못된 감정을 털어놓으면{'\n'}슬라임이 될 거예요
               </Text>
@@ -908,15 +355,9 @@ function Page() {
           {previewingTheme && (
             <View style={styles.previewBanner} pointerEvents="box-none">
               <View style={styles.previewBannerInner}>
-                <Text style={styles.previewBannerLabel}>
-                  {previewingTheme.name} 미리보기
-                </Text>
+                <Text style={styles.previewBannerLabel}>{previewingTheme.name} 미리보기</Text>
                 <View style={styles.previewBannerBtns}>
-                  <TouchableOpacity
-                    onPress={() => setPreviewThemeId(null)}
-                    style={styles.previewBannerClose}
-                    activeOpacity={0.7}
-                  >
+                  <TouchableOpacity onPress={() => setPreviewThemeId(null)} style={styles.previewBannerClose} activeOpacity={0.7}>
                     <Text style={styles.previewBannerCloseText}>닫기</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -936,21 +377,9 @@ function Page() {
         </View>
       </TouchableWithoutFeedback>
 
-      <View
-        style={[
-          styles.inputArea,
-          { borderTopColor: theme.borderColor, backgroundColor: theme.inputAreaBg },
-        ]}
-      >
+      <View style={[styles.inputArea, { borderTopColor: theme.borderColor, backgroundColor: theme.inputAreaBg }]}>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.inputBg,
-              color: theme.inputText,
-              borderColor: theme.borderColor,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.borderColor }]}
           value={text}
           onChangeText={setText}
           placeholder="지금 어떤 기분이에요? 다 털어놔요"
@@ -974,9 +403,7 @@ function Page() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -986,193 +413,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  headerSub: {
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  themePickerBtn: {
-    marginLeft: 'auto',
-  },
+  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  headerSub: { fontSize: 13, fontWeight: '500', flex: 1 },
+  themePickerBtn: { marginLeft: 'auto' },
   themeDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 2, borderColor: 'rgba(0,0,0,0.12)',
+    justifyContent: 'center', alignItems: 'center',
     backgroundColor: '#F0EDE6',
   },
-  themeDotInner: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-  },
-  themePanel: {
-    borderBottomWidth: 1,
-    paddingVertical: 12,
-  },
-  themePanelScroll: {
-    paddingHorizontal: 16,
-    gap: 12,
-    flexDirection: 'row',
-  },
-  themeCard: {
-    alignItems: 'center',
-    gap: 6,
-  },
+  themeDotInner: { width: 18, height: 18, borderRadius: 9 },
+  themePanel: { borderBottomWidth: 1, paddingVertical: 12 },
+  themePanelScroll: { paddingHorizontal: 16, gap: 12, flexDirection: 'row' },
+  themeCard: { alignItems: 'center', gap: 6 },
   themeCardPreview: {
-    width: 90,
-    height: 60,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    position: 'relative',
+    width: 90, height: 60, borderRadius: 12,
+    overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', position: 'relative',
   },
-  themeCardActive: {
-    borderColor: '#7C3AED',
-    borderWidth: 2.5,
-  },
-  themeCardPreviewing: {
-    borderColor: '#A78BFA',
-    borderWidth: 2,
-  },
+  themeCardActive: { borderColor: '#7C3AED', borderWidth: 2.5 },
+  themeCardPreviewing: { borderColor: '#A78BFA', borderWidth: 2 },
   themeCardLockOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  themeCardLockIcon: {
-    fontSize: 18,
-  },
+  themeCardLockIcon: { fontSize: 18 },
   themeCardAdBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    position: 'absolute', bottom: 4, right: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4,
+    paddingHorizontal: 4, paddingVertical: 1,
   },
-  themeCardAdText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  themeCardName: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  slimeArea: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-    paddingBottom: 40,
-  },
-  emptyEmoji: {
-    fontSize: 52,
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: -0.3,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  previewBanner: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-  },
+  themeCardAdText: { color: '#fff', fontSize: 9, fontWeight: '600' },
+  themeCardName: { fontSize: 11, fontWeight: '500' },
+  slimeArea: { flex: 1, position: 'relative', overflow: 'hidden' },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, paddingBottom: 40 },
+  emptyEmoji: { fontSize: 52, marginBottom: 4 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  previewBanner: { position: 'absolute', bottom: 16, left: 16, right: 16 },
   previewBannerInner: {
     backgroundColor: 'rgba(15,10,30,0.82)',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 10,
+    borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, gap: 10,
   },
-  previewBannerLabel: {
-    color: '#E2D9F3',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  previewBannerBtns: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  previewBannerLabel: { color: '#E2D9F3', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  previewBannerBtns: { flexDirection: 'row', gap: 8 },
   previewBannerClose: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
+    flex: 1, paddingVertical: 10, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center',
   },
-  previewBannerCloseText: {
-    color: '#C4B5FD',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  previewBannerUnlock: {
-    flex: 2,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-  },
-  previewBannerUnlockDisabled: {
-    backgroundColor: 'rgba(124,58,237,0.4)',
-  },
-  previewBannerUnlockText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  inputArea: {
-    padding: 16,
-    paddingBottom: 28,
-    gap: 10,
-    borderTopWidth: 1,
-  },
-  input: {
-    borderRadius: 16,
-    padding: 14,
-    fontSize: 15,
-    minHeight: 52,
-    maxHeight: 110,
-    borderWidth: 1.5,
-    lineHeight: 22,
-  },
-  button: {
-    backgroundColor: '#7C3AED',
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
+  previewBannerCloseText: { color: '#C4B5FD', fontSize: 14, fontWeight: '600' },
+  previewBannerUnlock: { flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: '#7C3AED', alignItems: 'center' },
+  previewBannerUnlockDisabled: { backgroundColor: 'rgba(124,58,237,0.4)' },
+  previewBannerUnlockText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  inputArea: { padding: 16, paddingBottom: 28, gap: 10, borderTopWidth: 1 },
+  input: { borderRadius: 16, padding: 14, fontSize: 15, minHeight: 52, maxHeight: 110, borderWidth: 1.5, lineHeight: 22 },
+  button: { backgroundColor: '#7C3AED', borderRadius: 16, paddingVertical: 15, alignItems: 'center' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
 });
