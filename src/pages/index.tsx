@@ -18,7 +18,7 @@ import { Slime, detectExpression } from '../components/Slime';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
 import { ThemeBackground, MiniDots } from '../components/ThemeBackground';
 import { EmotionAtmosphere } from '../components/EmotionAtmosphere';
-import { EXPRESSION_COLORS, BACKGROUND_THEMES, AD_GROUP_ID, canvasTheme } from '../constants/themes';
+import { EXPRESSION_COLORS, BACKGROUND_THEMES, AD_GROUP_ID } from '../constants/themes';
 import { useSlimePhysics, SlimeData, CANVAS_H } from '../hooks/useSlimePhysics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -40,8 +40,6 @@ export const Route = createRoute('/', {
 });
 
 function Page() {
-  const theme = canvasTheme;
-
   const [userKey, setUserKey] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
@@ -60,6 +58,7 @@ function Page() {
 
   const activeTheme = BACKGROUND_THEMES.find(t => t.id === activeThemeId) ?? BACKGROUND_THEMES[0]!;
   const displayedTheme = BACKGROUND_THEMES.find(t => t.id === (previewThemeId ?? activeThemeId)) ?? BACKGROUND_THEMES[0]!;
+  const theme = displayedTheme.ui;
 
   const dominantExpression = useMemo<SlimeData['expression'] | null>(() => {
     if (slimes.length === 0) return null;
@@ -292,7 +291,7 @@ function Page() {
         <View style={styles.themePickerBtn}>
           <TouchableOpacity
             onPress={() => { setShowThemePicker(v => !v); setPreviewThemeId(null); }}
-            style={styles.themeDot}
+            style={[styles.themeDot, { backgroundColor: theme.inputBg }]}
             activeOpacity={0.7}
           >
             <View style={[styles.themeDotInner, { backgroundColor: activeTheme.bg }]} />
@@ -398,7 +397,7 @@ function Page() {
           maxLength={200}
         />
         <TouchableOpacity
-          style={[styles.button, !text.trim() && { backgroundColor: theme.buttonDisabledBg }]}
+          style={[styles.button, { backgroundColor: text.trim() ? theme.buttonBg : theme.buttonDisabledBg }]}
           onPress={handleSubmit}
           disabled={!text.trim()}
           activeOpacity={0.8}
@@ -430,9 +429,8 @@ const styles = StyleSheet.create({
   themePickerBtn: { marginLeft: 4 },
   themeDot: {
     width: 28, height: 28, borderRadius: 14,
-    borderWidth: 2, borderColor: 'rgba(0,0,0,0.12)',
+    borderWidth: 2, borderColor: 'rgba(128,128,128,0.25)',
     justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#F0EDE6',
   },
   themeDotInner: { width: 18, height: 18, borderRadius: 9 },
   themePanel: { borderBottomWidth: 1, paddingVertical: 12 },
@@ -479,6 +477,6 @@ const styles = StyleSheet.create({
   previewBannerUnlockText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   inputArea: { padding: 16, paddingBottom: 28, gap: 10, borderTopWidth: 1 },
   input: { borderRadius: 16, padding: 14, fontSize: 15, minHeight: 52, maxHeight: 110, borderWidth: 1.5, lineHeight: 22 },
-  button: { backgroundColor: '#7C3AED', borderRadius: 16, paddingVertical: 15, alignItems: 'center' },
+  button: { borderRadius: 16, paddingVertical: 15, alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
 });
