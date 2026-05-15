@@ -18,6 +18,8 @@ interface SlimeProps {
   onDelete?: () => void;
   onMove?: (x: number, y: number) => void;
   onSplit?: (x: number, y: number, size: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 // [키워드, 가중치] — 강한 신호일수록 높은 값
@@ -116,7 +118,7 @@ function getIdleWobbleDuration(dayAge: number): number {
   return 4800;
 }
 
-export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, onSplit }: SlimeProps) {
+export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, onSplit, onDragStart, onDragEnd }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
 
@@ -137,6 +139,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   const onDeleteRef = useRef(onDelete);
   const onMoveRef = useRef(onMove);
   const onSplitRef = useRef(onSplit);
+  const onDragStartRef = useRef(onDragStart);
+  const onDragEndRef = useRef(onDragEnd);
   const [isActive, setIsActive] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
 
@@ -171,6 +175,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   useEffect(() => { onDeleteRef.current = onDelete; }, [onDelete]);
   useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
   useEffect(() => { onSplitRef.current = onSplit; }, [onSplit]);
+  useEffect(() => { onDragStartRef.current = onDragStart; }, [onDragStart]);
+  useEffect(() => { onDragEndRef.current = onDragEnd; }, [onDragEnd]);
 
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
@@ -274,7 +280,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   };
 
   const triggerSplit = () => {
-    if (size < 70) return;
+    if (size < 55) return;
     generateHapticFeedback({ type: 'basicWeak' });
     Animated.sequence([
       Animated.parallel([
@@ -293,12 +299,23 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt) => {
+        const { locationX, locationY } = evt.nativeEvent;
+        const ndx = (locationX - imgW / 2) / (imgW * 0.45);
+        const ndy = (locationY - imgH / 2) / (imgH * 0.45);
+        return ndx * ndx + ndy * ndy <= 1;
+      },
+      onMoveShouldSetPanResponder: (evt) => {
+        const { locationX, locationY } = evt.nativeEvent;
+        const ndx = (locationX - imgW / 2) / (imgW * 0.45);
+        const ndy = (locationY - imgH / 2) / (imgH * 0.45);
+        return ndx * ndx + ndy * ndy <= 1;
+      },
 
       onPanResponderGrant: () => {
         isDragging.current = false;
         setIsActive(true);
+        onDragStartRef.current?.();
         generateHapticFeedback({ type: 'tap' });
 
         Animated.parallel([
@@ -335,6 +352,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
       onPanResponderRelease: (_evt, _gs) => {
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
         setIsActive(false);
+        onDragEndRef.current?.();
         pan.flattenOffset();
 
         if (isDragging.current) {
