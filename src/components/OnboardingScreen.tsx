@@ -36,6 +36,8 @@ const QUESTIONS = [
   },
 ];
 
+const BLOB_LAYERS = [1.0, 0.70, 0.44, 0.24];
+
 const SMOKE_BLOBS = Array.from({ length: 9 }, (_, i) => ({
   id: i,
   x: SCREEN_WIDTH * (0.06 + i * 0.11),
@@ -83,12 +85,22 @@ function SmokeBlob({ x, size, duration, delay }: {
         top: SCREEN_HEIGHT + size / 2,
         width: size,
         height: size,
-        borderRadius: size / 2,
-        backgroundColor: 'rgba(210,210,228,1)',
         opacity,
         transform: [{ translateY }],
       }}
-    />
+    >
+      {BLOB_LAYERS.map((scale, i) => {
+        const s = size * scale;
+        const off = (size - s) / 2;
+        return (
+          <View key={i} style={{
+            position: 'absolute', left: off, top: off,
+            width: s, height: s, borderRadius: s / 2,
+            backgroundColor: 'rgba(210,210,228,1)',
+          }} />
+        );
+      })}
+    </Animated.View>
   );
 }
 

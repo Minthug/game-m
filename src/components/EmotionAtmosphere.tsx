@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, StyleSheet, Dimensions } from 'react-native';
+import { Animated, View, StyleSheet, Dimensions } from 'react-native';
+
+const BLOB_LAYERS = [1.0, 0.70, 0.44, 0.24];
 import { Expression } from './Slime';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -80,13 +82,23 @@ export function EmotionAtmosphere({ expression }: { expression: Expression | nul
             position: 'absolute',
             width: blob.size,
             height: blob.size,
-            borderRadius: blob.size / 2,
-            backgroundColor: activeColor,
             left: blob.left,
             top: blob.top,
             transform: [{ translateX: blobOffsets[i]!.x }, { translateY: blobOffsets[i]!.y }],
           }}
-        />
+        >
+          {BLOB_LAYERS.map((scale, li) => {
+            const s = blob.size * scale;
+            const off = (blob.size - s) / 2;
+            return (
+              <View key={li} style={{
+                position: 'absolute', left: off, top: off,
+                width: s, height: s, borderRadius: s / 2,
+                backgroundColor: activeColor,
+              }} />
+            );
+          })}
+        </Animated.View>
       ))}
     </Animated.View>
   );

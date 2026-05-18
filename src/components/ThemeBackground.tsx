@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Animated, View, Dimensions } from 'react-native';
+import { Animated, View, Dimensions, StyleSheet } from 'react-native';
+
+const BLOB_LAYERS = [1.0, 0.70, 0.44, 0.24];
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -209,17 +211,20 @@ function PulsingOrb({ x, y, size, color, durationMs }: {
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
-        opacity,
-      }}
-    />
+      style={{ position: 'absolute', left: x, top: y, width: size, height: size, opacity }}
+    >
+      {BLOB_LAYERS.map((scale, i) => {
+        const s = size * scale;
+        const off = (size - s) / 2;
+        return (
+          <View key={i} style={{
+            position: 'absolute', left: off, top: off,
+            width: s, height: s, borderRadius: s / 2,
+            backgroundColor: color,
+          }} />
+        );
+      })}
+    </Animated.View>
   );
 }
 
