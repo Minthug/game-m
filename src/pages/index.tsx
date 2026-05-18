@@ -18,6 +18,7 @@ import { Slime, detectExpression } from '../components/Slime';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
 import { ThemeBackground, MiniDots } from '../components/ThemeBackground';
 import { EmotionAtmosphere } from '../components/EmotionAtmosphere';
+import { OnboardingScreen } from '../components/OnboardingScreen';
 import { EXPRESSION_COLORS, BACKGROUND_THEMES, AD_GROUP_ID } from '../constants/themes';
 import { useSlimePhysics, SlimeData, CANVAS_H } from '../hooks/useSlimePhysics';
 
@@ -44,6 +45,7 @@ function Page() {
   const [text, setText] = useState('');
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
 
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [activeThemeId, setActiveThemeId] = useState('default');
   const [unlockedThemeIds, setUnlockedThemeIds] = useState<string[]>(['default']);
   const [showThemePicker, setShowThemePicker] = useState(false);
@@ -93,6 +95,9 @@ function Page() {
     });
     Storage.getItem('notifAsked').then(saved => {
       if (mounted && saved === 'true') notifAskedRef.current = true;
+    });
+    Storage.getItem('onboardingDone').then(done => {
+      if (mounted && done !== 'true') setShowOnboarding(true);
     });
     getAnonymousKey().then(result => {
       if (mounted && result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
@@ -168,6 +173,12 @@ function Page() {
       onError: () => {},
     });
   }, [adLoaded, reloadAd]);
+
+  const handleOnboardingComplete = useCallback((firstSlime: SlimeData | null) => {
+    if (firstSlime) setSlimes([firstSlime]);
+    setShowOnboarding(false);
+    Storage.setItem('onboardingDone', 'true');
+  }, []);
 
   const handleDelete = useCallback((id: string) => {
     setSlimes(prev => prev.filter(s => s.id !== id));
@@ -271,6 +282,7 @@ function Page() {
   const previewingTheme = previewThemeId ? BACKGROUND_THEMES.find(t => t.id === previewThemeId) : null;
 
   return (
+    <View style={styles.container}>
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: displayedTheme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -408,6 +420,10 @@ function Page() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    {showOnboarding && (
+      <OnboardingScreen onComplete={handleOnboardingComplete} />
+    )}
+    </View>
   );
 }
 
